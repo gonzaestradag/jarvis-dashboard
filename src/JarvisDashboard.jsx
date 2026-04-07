@@ -13,7 +13,7 @@ const NAV_ITEMS = [
 const API_BASE = "https://leo-my-ai-assistant.onrender.com";
 
 const FALLBACK = {
-  user:     { name: "Gonzalo", avatar: "GE", location: "Monterrey, MX" },
+  user:     { name: "Leonardo", avatar: "LE", location: "Monterrey, MX" },
   weather:  { temp: 28, condition: "Soleado", icon: "☀️", humidity: 45, wind: 14 },
   health:   { sleep: 7.2, sleepGoal: 8, calories: 1840, caloriesGoal: 2200, mood: 4, moodMax: 5, steps: 6800, stepsGoal: 10000, water: 1.8, waterGoal: 3 },
   calendar: [],
@@ -21,7 +21,7 @@ const FALLBACK = {
   gmail:    [],
   expenses: { total: 0, budget: 12000, categories: [] },
   goals:    [],
-  briefing: "Buenos días Gonzalo.",
+  briefing: "Buenos días Leonardo.",
 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -366,8 +366,8 @@ export default function JarvisDashboard() {
         expenses,
         goals,
         briefing: calendar.length
-          ? `Buenos días Gonzalo. Tienes ${calendar.length} evento${calendar.length !== 1 ? "s" : ""} hoy.`
-          : "Buenos días Gonzalo. No tienes eventos programados hoy.",
+          ? `Buenos días Leonardo. Tienes ${calendar.length} evento${calendar.length !== 1 ? "s" : ""} hoy.`
+          : "Buenos días Leonardo. No tienes eventos programados hoy.",
       }));
       setLoading(false);
     });
