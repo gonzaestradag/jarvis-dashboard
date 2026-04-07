@@ -9,55 +9,19 @@ const NAV_ITEMS = [
   { label: "Inversiones",to: "/inversiones" },
 ];
 
-// ─── MOCK DATA (replace each section with your Flask API calls) ───────────────
-const API_BASE = "https://leo-my-ai-assistant.onrender.com"; // tu Render URL
+// ─── API ──────────────────────────────────────────────────────────────────────
+const API_BASE = "https://leo-my-ai-assistant.onrender.com";
 
-const MOCK = {
-  user: { name: "Gonzalo", avatar: "GE", location: "Monterrey, MX" },
-  weather: { temp: 28, condition: "Soleado", icon: "☀️", humidity: 45, wind: 14 },
-  time: new Date(),
-  calendar: [
-    { id: 1, time: "09:00", title: "Llamada con equipo", color: "#2563EB" },
-    { id: 2, time: "11:30", title: "Clase de Finanzas", color: "#7C3AED" },
-    { id: 3, time: "14:00", title: "Entrenamiento Hyrox", color: "#059669" },
-    { id: 4, time: "17:00", title: "Revisión de gastos", color: "#D97706" },
-  ],
-  todos: [
-    { id: 1, text: "Terminar caso de estudio", done: false, priority: "alta" },
-    { id: 2, text: "Llamar a dentista", done: true, priority: "media" },
-    { id: 3, text: "Revisar inversiones", done: false, priority: "alta" },
-    { id: 4, text: "Pagar tarjeta AMEX", done: false, priority: "media" },
-    { id: 5, text: "Preparar presentación", done: false, priority: "baja" },
-  ],
-  health: {
-    sleep: 7.2, sleepGoal: 8,
-    calories: 1840, caloriesGoal: 2200,
-    mood: 4, moodMax: 5,
-    steps: 6800, stepsGoal: 10000,
-    water: 1.8, waterGoal: 3,
-  },
-  gmail: [
-    { id: 1, from: "Profesor García", subject: "Entrega Caso #3 - Viernes", unread: true, time: "8:42" },
-    { id: 2, from: "BBVA Bancomer", subject: "Resumen de cuenta disponible", unread: true, time: "7:15" },
-    { id: 3, from: "GitHub", subject: "Security alert on leo-my-ai", unread: false, time: "Ayer" },
-    { id: 4, from: "Papá", subject: "Re: Cena del domingo", unread: false, time: "Ayer" },
-  ],
-  expenses: {
-    total: 8450, budget: 12000,
-    categories: [
-      { name: "Comida", amount: 2100, color: "#2563EB" },
-      { name: "Transporte", amount: 980, color: "#7C3AED" },
-      { name: "Escuela", amount: 3200, color: "#059669" },
-      { name: "Ocio", amount: 1470, color: "#D97706" },
-      { name: "Otros", amount: 700, color: "#6B7280" },
-    ],
-  },
-  goals: [
-    { id: 1, title: "Fondo de emergencia", current: 45000, target: 60000, color: "#2563EB" },
-    { id: 2, title: "Hyrox Sub-1:15", current: 82, target: 100, unit: "%", color: "#059669" },
-    { id: 3, title: "Portafolio inversión", current: 28500, target: 50000, color: "#7C3AED" },
-  ],
-  briefing: "Buenos días Gonzalo. Tienes 4 eventos hoy. El clima está despejado a 28°C. Entrega de caso de estudio el viernes — recuerda revisar las finanzas de la empresa. Tu entrenamiento Hyrox está programado a las 2 PM.",
+const FALLBACK = {
+  user:     { name: "Gonzalo", avatar: "GE", location: "Monterrey, MX" },
+  weather:  { temp: 28, condition: "Soleado", icon: "☀️", humidity: 45, wind: 14 },
+  health:   { sleep: 7.2, sleepGoal: 8, calories: 1840, caloriesGoal: 2200, mood: 4, moodMax: 5, steps: 6800, stepsGoal: 10000, water: 1.8, waterGoal: 3 },
+  calendar: [],
+  todos:    [],
+  gmail:    [],
+  expenses: { total: 0, budget: 12000, categories: [] },
+  goals:    [],
+  briefing: "Buenos días Gonzalo.",
 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -382,7 +346,32 @@ export default function JarvisDashboard() {
   const now = useTime();
   const location = useLocation();
   const [modal, setModal] = useState(null);
-  const data = MOCK;
+  const [data, setData] = useState(FALLBACK);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const safe = (p, fallback) => p.then(r => r.ok ? r.json() : fallback).catch(() => fallback);
+    Promise.all([
+      safe(fetch(`${API_BASE}/api/calendar`), []),
+      safe(fetch(`${API_BASE}/api/tasks`),    []),
+      safe(fetch(`${API_BASE}/api/gmail`),    []),
+      safe(fetch(`${API_BASE}/api/expenses`), FALLBACK.expenses),
+      safe(fetch(`${API_BASE}/api/goals`),    []),
+    ]).then(([calendar, todos, gmail, expenses, goals]) => {
+      setData(prev => ({
+        ...prev,
+        calendar,
+        todos,
+        gmail,
+        expenses,
+        goals,
+        briefing: calendar.length
+          ? `Buenos días Gonzalo. Tienes ${calendar.length} evento${calendar.length !== 1 ? "s" : ""} hoy.`
+          : "Buenos días Gonzalo. No tienes eventos programados hoy.",
+      }));
+      setLoading(false);
+    });
+  }, []);
 
   const open = (title, content) => setModal({ title, content });
 
@@ -456,7 +445,10 @@ export default function JarvisDashboard() {
         {/* Footer */}
         <div style={{ textAlign: "center", marginTop: 24, fontSize: 12, color: "#CBD5E1" }}>
           Jarvis Dashboard · Última sync: {pad(now.getHours())}:{pad(now.getMinutes())} ·
-          <span style={{ color: "#10B981", marginLeft: 6 }}>● Conectado</span>
+          {loading
+            ? <span style={{ color: "#F59E0B", marginLeft: 6 }}>⏳ Cargando datos...</span>
+            : <span style={{ color: "#10B981", marginLeft: 6 }}>● Conectado</span>
+          }
         </div>
       </div>
 
