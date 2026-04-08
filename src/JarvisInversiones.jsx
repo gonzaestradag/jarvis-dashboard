@@ -49,10 +49,12 @@ function enrichHolding(h) {
 }
 
 // ─── FALLBACK DATA ────────────────────────────────────────────────────────────
-const FALLBACK_GOALS = [
-  { id: 1, title: "Portafolio inversión", current: 28500, target: 50000, color: "#7C3AED" },
-  { id: 2, title: "Fondo de emergencia",  current: 45000, target: 60000, color: "#2563EB" },
-  { id: 3, title: "CETES meta anual",     current: 12540, target: 20000, color: "#059669" },
+const FALLBACK_NEWS = [
+  { title: "Markets await Fed signals on rate path amid inflation data", source: "Reuters", ts: Date.now() - 3600000 },
+  { title: "S&P 500 edges higher as tech leads broad rally", source: "Bloomberg", ts: Date.now() - 7200000 },
+  { title: "NVDA surges on strong data-center demand outlook", source: "CNBC", ts: Date.now() - 10800000 },
+  { title: "Oil steadies as OPEC+ holds production targets", source: "WSJ", ts: Date.now() - 18000000 },
+  { title: "Dollar weakens ahead of key employment report", source: "FT", ts: Date.now() - 25200000 },
 ];
 
 const FALLBACK_HISTORY = [
@@ -283,27 +285,110 @@ function AllocationPanel({ holdings }) {
   );
 }
 
-function GoalsPanel({ goals }) {
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  return `${Math.floor(s / 86400)}d`;
+}
+
+function NewsPanel() {
+  const [news, setNews]         = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [source, setSource]     = useState("");
+
+  useEffect(() => {
+    async function fetchNews() {
+      // 1 — Yahoo Finance
+      try {
+        const r = await fetch(
+          "https://query1.finance.yahoo.com/v8/finance/search?q=stock+market+news&newsCount=5",
+          { headers: { "Accept": "application/json" } }
+        );
+        if (r.ok) {
+          const d = await r.json();
+          const items = (d?.news || []).slice(0, 5).map(n => ({
+            title:  n.title,
+            source: n.publisher || "Yahoo Finance",
+            link:   n.link || "#",
+            ts:     (n.providerPublishTime || 0) * 1000,
+          }));
+          if (items.length) { setNews(items); setSource("Yahoo Finance"); return; }
+        }
+      } catch { /* fall through */ }
+
+      // 2 — Google News RSS via allorigins proxy (evita CORS)
+      try {
+        const rssUrl = encodeURIComponent(
+          "https://news.google.com/rss/search?q=stock+market&hl=es&gl=MX&ceid=MX:es"
+        );
+        const r = await fetch(`https://api.allorigins.win/raw?url=${rssUrl}`);
+        if (r.ok) {
+          const xml  = await r.text();
+          const doc  = new DOMParser().parseFromString(xml, "text/xml");
+          const items = Array.from(doc.querySelectorAll("item")).slice(0, 5).map(item => ({
+            title:  item.querySelector("title")?.textContent || "",
+            source: item.querySelector("source")?.textContent || "Google News",
+            link:   item.querySelector("link")?.textContent || "#",
+            ts:     new Date(item.querySelector("pubDate")?.textContent || 0).getTime(),
+          }));
+          if (items.length) { setNews(items); setSource("Google News"); return; }
+        }
+      } catch { /* fall through */ }
+
+      // 3 — Fallback estático
+      setNews(FALLBACK_NEWS);
+      setSource("caché");
+    }
+
+    fetchNews().finally(() => setLoading(false));
+  }, []);
+
   return (
-    <PanelWrapper title="Metas financieras" icon="🎯" accent="#059669">
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {goals.map(g => {
-          const pct = Math.round((g.current / g.target) * 100);
-          return (
-            <div key={g.id}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                <span style={{ fontSize: 13, fontWeight: 500, color: "#334155" }}>{g.title}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: g.color }}>{pct}%</span>
-              </div>
-              <Bar value={g.current} max={g.target} color={g.color} height={6}/>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                <span style={{ fontSize: 11, color: "#94A3B8" }}>${g.current.toLocaleString()}</span>
-                <span style={{ fontSize: 11, color: "#CBD5E1" }}>${g.target.toLocaleString()}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+    <PanelWrapper title="Noticias del mercado" icon="📰" accent="#059669">
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "24px 0", color: "#94A3B8", fontSize: 13 }}>
+          ⏳ Cargando noticias...
+        </div>
+      ) : (
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {news.map((n, i) => (
+              <a key={i} href={n.link} target="_blank" rel="noreferrer"
+                style={{ textDecoration: "none", display: "block" }}>
+                <div style={{
+                  padding: "9px 11px", borderRadius: 9,
+                  background: "#F8FAFC", border: "1px solid #F1F5F9",
+                  transition: "border-color .15s, background .15s", cursor: "pointer",
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#059669"; e.currentTarget.style.background = "#F0FDF4"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#F1F5F9"; e.currentTarget.style.background = "#F8FAFC"; }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#1E293B",
+                    lineHeight: 1.45, marginBottom: 5,
+                    display: "-webkit-box", WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    {n.title}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#059669",
+                      background: "#DCFCE7", padding: "1px 7px", borderRadius: 5 }}>
+                      {n.source}
+                    </span>
+                    <span style={{ fontSize: 10, color: "#94A3B8" }}>
+                      hace {timeAgo(n.ts)}
+                    </span>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+          <div style={{ marginTop: 10, fontSize: 10, color: "#CBD5E1", textAlign: "right" }}>
+            Fuente: {source}
+          </div>
+        </>
+      )}
     </PanelWrapper>
   );
 }
@@ -585,7 +670,7 @@ export default function JarvisInversiones() {
         {/* 3-col grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
           <AllocationPanel holdings={holdings}/>
-          <GoalsPanel goals={FALLBACK_GOALS}/>
+          <NewsPanel/>
           <InsightsPanel holdings={holdings}/>
         </div>
 
