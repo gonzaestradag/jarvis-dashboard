@@ -152,13 +152,26 @@ function Sparkline({ data, color = "#2563EB" }) {
   );
 }
 
-function HoldingsTable({ holdings }) {
+function HoldingsTable({ holdings, onDelete }) {
+  const [deleting, setDeleting] = useState(null);
+
+  async function handleDelete(ticker) {
+    if (!window.confirm(`¿Eliminar posición ${ticker}?`)) return;
+    setDeleting(ticker);
+    try {
+      const res = await fetch(`${API_BASE}/api/investments/${ticker}`, { method: "DELETE" });
+      if (res.ok) onDelete(ticker);
+    } finally {
+      setDeleting(null);
+    }
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
       {/* Header */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 32px",
         gap: 8, padding: "6px 10px", marginBottom: 4 }}>
-        {["Activo", "Tipo", "Invertido", "Valor actual", "P&L"].map(h => (
+        {["Activo", "Tipo", "Invertido", "Valor actual", "P&L", ""].map(h => (
           <span key={h} style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8",
             textTransform: "uppercase", letterSpacing: ".07em" }}>{h}</span>
         ))}
@@ -169,11 +182,13 @@ function HoldingsTable({ holdings }) {
         const pnl = actual - invertido;
         const pnlPct = (pnl / invertido) * 100;
         const pos = pnl >= 0;
+        const isDeleting = deleting === h.ticker;
         return (
           <div key={h.ticker} style={{
-            display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
+            display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 32px",
             gap: 8, padding: "10px 10px", borderRadius: 9,
             transition: "background .15s",
+            opacity: isDeleting ? 0.4 : 1,
           }}
             onMouseEnter={e => { e.currentTarget.style.background = "#F8FAFC"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
@@ -212,6 +227,25 @@ function HoldingsTable({ holdings }) {
               <span style={{ fontSize: 11, color: pos ? "#059669" : "#EF4444" }}>
                 {fmtPct(pnlPct)}
               </span>
+            </div>
+            {/* Eliminar */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <button
+                onClick={() => handleDelete(h.ticker)}
+                disabled={isDeleting}
+                title={`Eliminar ${h.ticker}`}
+                style={{
+                  width: 24, height: 24, borderRadius: 6, border: "1px solid #FCA5A5",
+                  background: "#FEF2F2", color: "#EF4444", fontSize: 12, fontWeight: 700,
+                  cursor: isDeleting ? "not-allowed" : "pointer", lineHeight: 1,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "all .15s",
+                }}
+                onMouseEnter={e => { if (!isDeleting) { e.currentTarget.style.background = "#EF4444"; e.currentTarget.style.color = "#fff"; }}}
+                onMouseLeave={e => { e.currentTarget.style.background = "#FEF2F2"; e.currentTarget.style.color = "#EF4444"; }}
+              >
+                {isDeleting ? "…" : "✕"}
+              </button>
             </div>
           </div>
         );
@@ -544,7 +578,7 @@ export default function JarvisInversiones() {
         <PanelWrapper title="Mis posiciones" icon="📋" accent="#2563EB" style={{ marginBottom: 16 }}>
           {loading
             ? <div style={{ textAlign: "center", padding: 24, color: "#94A3B8", fontSize: 13 }}>⏳ Cargando posiciones...</div>
-            : <HoldingsTable holdings={holdings}/>
+            : <HoldingsTable holdings={holdings} onDelete={ticker => setHoldings(prev => prev.filter(h => h.ticker !== ticker))}/>
           }
         </PanelWrapper>
 
