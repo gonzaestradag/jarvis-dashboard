@@ -9,6 +9,9 @@ const NAV_ITEMS = [
   { label: "Inversiones",to: "/inversiones" },
 ];
 
+const API_BASE = "https://leo-my-ai-assistant.onrender.com";
+const DAY_ABBR = ["D", "L", "M", "X", "J", "V", "S"];
+
 function pad(n) { return String(n).padStart(2, "0"); }
 
 function useTime() {
@@ -17,8 +20,8 @@ function useTime() {
   return now;
 }
 
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-const HEALTH = {
+// ─── FALLBACK DATA ────────────────────────────────────────────────────────────
+const FALLBACK_HEALTH = {
   sleep: 7.2, sleepGoal: 8,
   calories: 1840, caloriesGoal: 2200,
   protein: 142, proteinGoal: 180,
@@ -28,7 +31,7 @@ const HEALTH = {
   weight: 74.5, weightGoal: 72,
 };
 
-const WEEKLY_SLEEP = [
+const FALLBACK_WEEKLY_SLEEP = [
   { day: "L", hours: 6.5 }, { day: "M", hours: 7.8 }, { day: "X", hours: 7.0 },
   { day: "J", hours: 8.1 }, { day: "V", hours: 6.2 }, { day: "S", hours: 9.0 },
   { day: "D", hours: 7.2 },
@@ -41,7 +44,7 @@ const HYROX_SESSIONS = [
   { date: "Mar 27", type: "Burpee Broad Jumps", duration: "55 min", intensity: "alta", done: false },
 ];
 
-const MEDICATIONS = [
+const FALLBACK_MEDICATIONS = [
   { name: "Vitamina D3", dosage: "2000 UI", time: "08:00", taken: true },
   { name: "Omega-3", dosage: "1000 mg", time: "13:00", taken: true },
   { name: "Magnesio", dosage: "400 mg", time: "21:00", taken: false },
@@ -236,7 +239,7 @@ function MoodPanel({ mood }) {
             {MOOD_LABELS[mood]}
           </div>
           <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>
-            {mood}/{HEALTH.moodMax} hoy
+            {mood}/5 hoy
           </div>
         </div>
       </div>
@@ -280,6 +283,36 @@ function WeightPanel({ weight, goal }) {
 export default function JarvisSalud() {
   const now = useTime();
   const location = useLocation();
+
+  const [health, setHealth]       = useState(FALLBACK_HEALTH);
+  const [weeklySleep, setWeeklySleep] = useState(FALLBACK_WEEKLY_SLEEP);
+  const [medications, setMedications] = useState(FALLBACK_MEDICATIONS);
+  const [loading, setLoading]     = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/health`)
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null)
+      .then(d => {
+        if (d) {
+          setHealth(prev => ({
+            ...prev,
+            sleep:    d.sleep_today    ?? prev.sleep,
+            calories: d.calories_today ?? prev.calories,
+            protein:  d.protein_today  ?? prev.protein,
+            mood:     d.mood_today     ?? prev.mood,
+          }));
+          if (d.sleep_week?.length) {
+            setWeeklySleep(d.sleep_week.map(({ date, hours }) => ({
+              day: DAY_ABBR[new Date(date + "T12:00:00").getDay()],
+              hours,
+            })));
+          }
+          if (d.medications?.length) setMedications(d.medications);
+        }
+        setLoading(false);
+      });
+  }, []);
 
   return (
     <div style={{
@@ -343,8 +376,8 @@ export default function JarvisSalud() {
               Hyrox Sub-1:15 · 82% del camino
             </div>
             <div style={{ fontSize: 14, color: "#A7F3D0", lineHeight: 1.5, maxWidth: 520 }}>
-              Sueño promedio esta semana: 7.4h · {HEALTH.steps.toLocaleString()} pasos hoy ·
-              Ánimo: {MOOD_LABELS[HEALTH.mood]}
+              Sueño promedio esta semana: {weeklySleep.length ? (weeklySleep.reduce((s,d)=>s+d.hours,0)/weeklySleep.length).toFixed(1) : "—"}h · {health.steps.toLocaleString()} pasos hoy ·
+              Ánimo: {MOOD_LABELS[health.mood]}
             </div>
           </div>
           <div style={{ textAlign: "center", flexShrink: 0 }}>
@@ -358,26 +391,29 @@ export default function JarvisSalud() {
 
         {/* Metrics full-width */}
         <div style={{ marginBottom: 16 }}>
-          <MetricsPanel h={HEALTH}/>
+          <MetricsPanel h={health}/>
         </div>
 
         {/* 3-col grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
-          <SleepPanel data={WEEKLY_SLEEP}/>
+          <SleepPanel data={weeklySleep}/>
           <HyroxPanel sessions={HYROX_SESSIONS}/>
-          <MedicationPanel meds={MEDICATIONS}/>
+          <MedicationPanel meds={medications}/>
         </div>
 
         {/* 2-col row */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <MoodPanel mood={HEALTH.mood}/>
-          <WeightPanel weight={HEALTH.weight} goal={HEALTH.weightGoal}/>
+          <MoodPanel mood={health.mood}/>
+          <WeightPanel weight={health.weight} goal={health.weightGoal}/>
         </div>
 
         {/* Footer */}
         <div style={{ textAlign: "center", marginTop: 24, fontSize: 12, color: "#CBD5E1" }}>
           Jarvis Dashboard · Última sync: {pad(now.getHours())}:{pad(now.getMinutes())} ·
-          <span style={{ color: "#10B981", marginLeft: 6 }}>● Conectado</span>
+          {loading
+            ? <span style={{ color: "#F59E0B", marginLeft: 6 }}>⏳ Cargando...</span>
+            : <span style={{ color: "#10B981", marginLeft: 6 }}>● Conectado</span>
+          }
         </div>
       </div>
     </div>
