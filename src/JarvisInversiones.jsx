@@ -542,23 +542,26 @@ export default function JarvisInversiones() {
   const [holdings, setHoldings] = useState([]);
   const [stats, setStats]       = useState({ totalActual: 0, totalInvertido: 0, ganancia: 0, pct: 0 });
   const [loading, setLoading]   = useState(true);
+  const [perf, setPerf]         = useState(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/investments`)
-      .then(r => r.ok ? r.json() : null)
-      .catch(() => null)
-      .then(d => {
-        if (d && d.holdings?.length) {
-          setHoldings(d.holdings.map(enrichHolding));
-          setStats({
-            totalActual:    d.total_value,
-            totalInvertido: d.total_cost,
-            ganancia:       d.total_gain,
-            pct:            d.total_gain_pct,
-          });
-        }
-        setLoading(false);
-      });
+    const safe = (p) => p.then(r => r.ok ? r.json() : null).catch(() => null);
+    Promise.all([
+      safe(fetch(`${API_BASE}/api/investments`)),
+      safe(fetch(`${API_BASE}/api/investments/performance`)),
+    ]).then(([inv, perfData]) => {
+      if (inv?.holdings?.length) {
+        setHoldings(inv.holdings.map(enrichHolding));
+        setStats({
+          totalActual:    inv.total_value,
+          totalInvertido: inv.total_cost,
+          ganancia:       inv.total_gain,
+          pct:            inv.total_gain_pct,
+        });
+      }
+      if (perfData) setPerf(perfData);
+      setLoading(false);
+    });
   }, []);
 
   const best = holdings.length
@@ -612,6 +615,52 @@ export default function JarvisInversiones() {
             })}
           </nav>
         </div>
+
+        {/* Performance pills */}
+        {(() => {
+          const pills = [
+            { label: "HOY",   key: "day_gain"   },
+            { label: "SEMANA", key: "week_gain"  },
+            { label: "MES",   key: "month_gain"  },
+            { label: "AÑO",   key: "year_gain"   },
+          ];
+          return (
+            <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+              {pills.map(({ label, key }) => {
+                const g = perf?.[key];
+                const hasData = g && g.usd !== null;
+                const pos = hasData ? g.usd >= 0 : null;
+                const color  = pos === true ? "#059669" : pos === false ? "#EF4444" : "#94A3B8";
+                const bg     = pos === true ? "#F0FDF4" : pos === false ? "#FEF2F2" : "#F8FAFC";
+                const border = pos === true ? "#BBF7D0" : pos === false ? "#FECACA" : "#E2E8F0";
+                return (
+                  <div key={key} style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "8px 16px", borderRadius: 10,
+                    background: bg, border: `1px solid ${border}`,
+                  }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8",
+                      textTransform: "uppercase", letterSpacing: ".08em", minWidth: 40 }}>
+                      {label}
+                    </span>
+                    {hasData ? (
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color, fontFamily: "'SF Mono','Fira Code',monospace" }}>
+                          {pos ? "+" : ""}${fmt(Math.abs(g.usd))}
+                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color }}>
+                          {fmtPct(g.pct)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 12, color: "#CBD5E1" }}>—</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* Header banner */}
         <div style={{
