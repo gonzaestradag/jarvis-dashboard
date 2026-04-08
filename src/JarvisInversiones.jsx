@@ -21,68 +21,41 @@ function useTime() {
   return now;
 }
 
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-// Basado en la tabla portfolio (ticker, shares, avg_price) + precios simulados
-const HOLDINGS = [
-  {
-    ticker: "CETES",
-    nombre: "CETES 90 días",
-    tipo: "Renta Fija",
-    shares: 1,
-    avg_price: 12000,
-    current_price: 12540,
-    color: "#2563EB",
-    icon: "🏛️",
-  },
-  {
-    ticker: "VOO",
-    nombre: "Vanguard S&P 500 ETF",
-    tipo: "ETF USA",
-    shares: 2.5,
-    avg_price: 3280,
-    current_price: 3610,
-    color: "#7C3AED",
-    icon: "📈",
-  },
-  {
-    ticker: "NVDA",
-    nombre: "NVIDIA Corporation",
-    tipo: "Acción",
-    shares: 1,
-    avg_price: 4500,
-    current_price: 5810,
-    color: "#10B981",
-    icon: "💻",
-  },
-  {
-    ticker: "AAPL",
-    nombre: "Apple Inc.",
-    tipo: "Acción",
-    shares: 2,
-    avg_price: 1750,
-    current_price: 1680,
-    color: "#6366F1",
-    icon: "🍎",
-  },
-  {
-    ticker: "GBM+",
-    nombre: "GBM+ Portafolio Flex",
-    tipo: "Fondo",
-    shares: 1,
-    avg_price: 2800,
-    current_price: 3020,
-    color: "#D97706",
-    icon: "💼",
-  },
-];
+// ─── TICKER METADATA (colores, iconos, nombres) ───────────────────────────────
+const TICKER_META = {
+  AAPL:  { nombre: "Apple Inc.",            tipo: "Acción", color: "#6366F1", icon: "🍎" },
+  COIN:  { nombre: "Coinbase Global",        tipo: "Acción", color: "#F97316", icon: "🪙" },
+  CRM:   { nombre: "Salesforce Inc.",        tipo: "Acción", color: "#2563EB", icon: "☁️" },
+  CVX:   { nombre: "Chevron Corporation",    tipo: "Acción", color: "#D97706", icon: "⛽" },
+  FCX:   { nombre: "Freeport-McMoRan",       tipo: "Acción", color: "#10B981", icon: "⛏️" },
+  GOOGL: { nombre: "Alphabet Inc.",          tipo: "Acción", color: "#4285F4", icon: "🔍" },
+  LLY:   { nombre: "Eli Lilly & Co.",        tipo: "Acción", color: "#7C3AED", icon: "💊" },
+  META:  { nombre: "Meta Platforms",         tipo: "Acción", color: "#1877F2", icon: "👤" },
+  NVDA:  { nombre: "NVIDIA Corporation",     tipo: "Acción", color: "#76B900", icon: "💻" },
+  PLTR:  { nombre: "Palantir Technologies",  tipo: "Acción", color: "#EF4444", icon: "🔮" },
+  PTON:  { nombre: "Peloton Interactive",    tipo: "Acción", color: "#EC4899", icon: "🚲" },
+  SNDK:  { nombre: "SanDisk Corp.",          tipo: "Acción", color: "#059669", icon: "💾" },
+  UNFI:  { nombre: "United Natural Foods",   tipo: "Acción", color: "#94A3B8", icon: "🌿" },
+};
 
-const GOALS = [
+function enrichHolding(h) {
+  const meta = TICKER_META[h.ticker] || { nombre: h.ticker, tipo: "Acción", color: "#2563EB", icon: "📈" };
+  return {
+    ...h,
+    avg_price:     h.avg_cost,
+    current_price: h.price ?? h.avg_cost,
+    ...meta,
+  };
+}
+
+// ─── FALLBACK DATA ────────────────────────────────────────────────────────────
+const FALLBACK_GOALS = [
   { id: 1, title: "Portafolio inversión", current: 28500, target: 50000, color: "#7C3AED" },
-  { id: 2, title: "Fondo de emergencia", current: 45000, target: 60000, color: "#2563EB" },
-  { id: 3, title: "CETES meta anual", current: 12540, target: 20000, color: "#059669" },
+  { id: 2, title: "Fondo de emergencia",  current: 45000, target: 60000, color: "#2563EB" },
+  { id: 3, title: "CETES meta anual",     current: 12540, target: 20000, color: "#059669" },
 ];
 
-const HISTORY = [
+const FALLBACK_HISTORY = [
   { mes: "Oct", valor: 24100 },
   { mes: "Nov", valor: 25400 },
   { mes: "Dic", valor: 23800 },
@@ -91,22 +64,7 @@ const HISTORY = [
   { mes: "Mar", valor: 28500 },
 ];
 
-const INSIGHTS = [
-  { icon: "📊", text: "NVDA lidera tu portafolio con +29.1% desde tu entrada. Considera tomar utilidades parciales." },
-  { icon: "⚠️", text: "AAPL está en negativo (-4.0%). Evalúa si mantener o promediar a la baja." },
-  { icon: "💡", text: "Tu exposición a renta fija (CETES) es 44%. Considera aumentar renta variable para tu horizonte a largo plazo." },
-  { icon: "🎯", text: "Vas en 57% de tu meta de portafolio ($50,000). A este ritmo la alcanzarás en ~8 meses." },
-];
-
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
-
-function getStats(holdings) {
-  const totalInvertido = holdings.reduce((s, h) => s + h.shares * h.avg_price, 0);
-  const totalActual = holdings.reduce((s, h) => s + h.shares * h.current_price, 0);
-  const ganancia = totalActual - totalInvertido;
-  const pct = (ganancia / totalInvertido) * 100;
-  return { totalInvertido, totalActual, ganancia, pct };
-}
 
 // ─── COMPONENTS ──────────────────────────────────────────────────────────────
 
@@ -316,11 +274,25 @@ function GoalsPanel({ goals }) {
   );
 }
 
-function InsightsPanel() {
+function InsightsPanel({ holdings }) {
+  const insights = [];
+  if (holdings.length) {
+    const best  = holdings.reduce((b, h) => h.gain_pct > b.gain_pct ? h : b, holdings[0]);
+    const worst = holdings.reduce((w, h) => h.gain_pct < w.gain_pct ? h : w, holdings[0]);
+    const totalVal = holdings.reduce((s, h) => s + h.value, 0);
+    insights.push({ icon: "📊", text: `${best.ticker} lidera tu portafolio con ${fmtPct(best.gain_pct)} desde tu entrada.` });
+    if (worst.gain_pct < 0)
+      insights.push({ icon: "⚠️", text: `${worst.ticker} está en negativo (${fmtPct(worst.gain_pct)}). Evalúa si mantener o promediar a la baja.` });
+    const topAlloc = holdings.reduce((b, h) => h.value > b.value ? h : b, holdings[0]);
+    insights.push({ icon: "💡", text: `${topAlloc.ticker} representa el ${((topAlloc.value / totalVal) * 100).toFixed(1)}% de tu portafolio.` });
+    insights.push({ icon: "🎯", text: `${holdings.length} posiciones activas · valor total $${fmt(totalVal)}.` });
+  } else {
+    insights.push({ icon: "⏳", text: "Cargando insights..." });
+  }
   return (
     <PanelWrapper title="Insights de Jarvis" icon="🤖" accent="#2563EB">
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {INSIGHTS.map((ins, i) => (
+        {insights.map((ins, i) => (
           <div key={i} style={{
             display: "flex", gap: 10, padding: "10px 12px",
             background: "#F8FAFC", borderRadius: 9, border: "1px solid #F1F5F9",
@@ -337,7 +309,7 @@ function InsightsPanel() {
 function ChatPanel() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "Hola Gonzalo 👋 Pregúntame sobre tu portafolio, rendimientos o estrategia de inversión.", time: "" },
+    { role: "assistant", text: "Hola Leonardo 👋 Pregúntame sobre tu portafolio, rendimientos o estrategia de inversión.", time: "" },
   ]);
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
@@ -447,8 +419,32 @@ function ChatPanel() {
 export default function JarvisInversiones() {
   const now = useTime();
   const location = useLocation();
-  const stats = getStats(HOLDINGS);
-  const totalActual = HOLDINGS.reduce((s, h) => s + h.shares * h.current_price, 0);
+
+  const [holdings, setHoldings] = useState([]);
+  const [stats, setStats]       = useState({ totalActual: 0, totalInvertido: 0, ganancia: 0, pct: 0 });
+  const [loading, setLoading]   = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/investments`)
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null)
+      .then(d => {
+        if (d && d.holdings?.length) {
+          setHoldings(d.holdings.map(enrichHolding));
+          setStats({
+            totalActual:    d.total_value,
+            totalInvertido: d.total_cost,
+            ganancia:       d.total_gain,
+            pct:            d.total_gain_pct,
+          });
+        }
+        setLoading(false);
+      });
+  }, []);
+
+  const best = holdings.length
+    ? holdings.reduce((b, h) => h.gain_pct > b.gain_pct ? h : b, holdings[0])
+    : null;
 
   return (
     <div style={{
@@ -511,8 +507,8 @@ export default function JarvisInversiones() {
             </div>
             <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-.02em", lineHeight: 1,
               fontFamily: "'SF Mono','Fira Code',monospace" }}>
-              ${fmt(stats.totalActual)}
-              <span style={{ fontSize: 16, color: "#93C5FD", marginLeft: 6 }}>MXN</span>
+              {loading ? "—" : `$${fmt(stats.totalActual)}`}
+              <span style={{ fontSize: 16, color: "#93C5FD", marginLeft: 6 }}>USD</span>
             </div>
             <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 16 }}>
               <span style={{
@@ -525,35 +521,38 @@ export default function JarvisInversiones() {
             </div>
           </div>
           <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <Sparkline data={HISTORY} color="#60A5FA"/>
+            <Sparkline data={FALLBACK_HISTORY} color="#60A5FA"/>
             <div style={{ fontSize: 11, color: "#93C5FD", marginTop: 6 }}>Últimos 6 meses</div>
           </div>
         </div>
 
         {/* Stat cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
-          <StatCard icon="💰" label="Valor actual" value={`$${fmt(stats.totalActual)}`} accent="#2563EB"/>
+          <StatCard icon="💰" label="Valor actual" value={loading ? "—" : `$${fmt(stats.totalActual)}`} accent="#2563EB"/>
           <StatCard icon="📈" label="Ganancia total"
-            value={`${stats.ganancia >= 0 ? "+" : ""}$${fmt(stats.ganancia)}`}
-            sub={fmtPct(stats.pct)}
+            value={loading ? "—" : `${stats.ganancia >= 0 ? "+" : ""}$${fmt(Math.abs(stats.ganancia))}`}
+            sub={loading ? "" : fmtPct(stats.pct)}
             accent="#059669" positive={stats.ganancia >= 0}/>
-          <StatCard icon="📦" label="Posiciones" value={HOLDINGS.length} accent="#7C3AED"/>
+          <StatCard icon="📦" label="Posiciones" value={loading ? "—" : holdings.length} accent="#7C3AED"/>
           <StatCard icon="🏆" label="Mejor posición"
-            value="NVDA"
-            sub="+29.1% · $1,310 ganados"
-            accent="#10B981" positive/>
+            value={best ? best.ticker : "—"}
+            sub={best ? `${fmtPct(best.gain_pct)} · $${fmt(Math.abs(best.gain))} ganados` : ""}
+            accent="#10B981" positive={best ? best.gain >= 0 : undefined}/>
         </div>
 
         {/* Holdings table — full width */}
         <PanelWrapper title="Mis posiciones" icon="📋" accent="#2563EB" style={{ marginBottom: 16 }}>
-          <HoldingsTable holdings={HOLDINGS}/>
+          {loading
+            ? <div style={{ textAlign: "center", padding: 24, color: "#94A3B8", fontSize: 13 }}>⏳ Cargando posiciones...</div>
+            : <HoldingsTable holdings={holdings}/>
+          }
         </PanelWrapper>
 
         {/* 3-col grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
-          <AllocationPanel holdings={HOLDINGS}/>
-          <GoalsPanel goals={GOALS}/>
-          <InsightsPanel/>
+          <AllocationPanel holdings={holdings}/>
+          <GoalsPanel goals={FALLBACK_GOALS}/>
+          <InsightsPanel holdings={holdings}/>
         </div>
 
         {/* Chat — full width */}
@@ -562,8 +561,10 @@ export default function JarvisInversiones() {
         {/* Footer */}
         <div style={{ textAlign: "center", marginTop: 20, fontSize: 12, color: "#CBD5E1" }}>
           Jarvis Dashboard · Última sync: {pad(now.getHours())}:{pad(now.getMinutes())} ·
-          <span style={{ color: "#10B981", marginLeft: 6 }}>● Conectado</span>
-          <span style={{ marginLeft: 12, color: "#CBD5E1" }}>Datos simulados — conectar a API Flask /portfolio</span>
+          {loading
+            ? <span style={{ color: "#F59E0B", marginLeft: 6 }}>⏳ Cargando...</span>
+            : <span style={{ color: "#10B981", marginLeft: 6 }}>● Conectado · {holdings.length} posiciones</span>
+          }
         </div>
       </div>
     </div>
