@@ -285,6 +285,207 @@ function AllocationPanel({ holdings }) {
   );
 }
 
+// ─── PERFORMANCE CALENDAR ────────────────────────────────────────────────────
+const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DAY_LABELS  = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+
+function PerformanceCalendar() {
+  const today = new Date();
+  const [viewYear,  setViewYear]  = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth() + 1); // 1-12
+  const [snapMap,   setSnapMap]   = useState({});          // "YYYY-MM-DD" → row
+  const [calLoading, setCalLoading] = useState(false);
+  const [selected,  setSelected]  = useState(null);        // "YYYY-MM-DD"
+
+  useEffect(() => {
+    setCalLoading(true);
+    setSelected(null);
+    fetch(`${API_BASE}/api/investments/history?year=${viewYear}&month=${viewMonth}`)
+      .then(r => r.ok ? r.json() : [])
+      .catch(() => [])
+      .then(rows => {
+        const m = {};
+        rows.forEach(r => { m[r.date] = r; });
+        setSnapMap(m);
+        setCalLoading(false);
+      });
+  }, [viewYear, viewMonth]);
+
+  function prevMonth() {
+    if (viewMonth === 1) { setViewYear(y => y - 1); setViewMonth(12); }
+    else setViewMonth(m => m - 1);
+  }
+  function nextMonth() {
+    const ny = viewMonth === 12 ? viewYear + 1 : viewYear;
+    const nm = viewMonth === 12 ? 1 : viewMonth + 1;
+    if (ny > today.getFullYear() || (ny === today.getFullYear() && nm > today.getMonth() + 1)) return;
+    setViewYear(ny); setViewMonth(nm);
+  }
+
+  // Build calendar grid
+  const firstDay = new Date(viewYear, viewMonth - 1, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  // Month summary
+  const monthRows = Object.values(snapMap);
+  const monthGain = monthRows.reduce((s, r) => s + (r.gain_vs_prev_day ?? 0), 0);
+  const isNextDisabled = viewYear > today.getFullYear() ||
+    (viewYear === today.getFullYear() && viewMonth >= today.getMonth() + 1);
+
+  const selRow = selected ? snapMap[selected] : null;
+
+  return (
+    <div style={{
+      background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: 16,
+      padding: "20px 22px", marginBottom: 20, position: "relative",
+    }}>
+      {/* Calendar header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8",
+            textTransform: "uppercase", letterSpacing: ".08em" }}>📅 Calendario de rendimiento</span>
+          {monthRows.length > 0 && (
+            <span style={{
+              fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 7,
+              background: monthGain >= 0 ? "#F0FDF4" : "#FEF2F2",
+              color: monthGain >= 0 ? "#059669" : "#EF4444",
+              border: `1px solid ${monthGain >= 0 ? "#BBF7D0" : "#FECACA"}`,
+            }}>
+              {monthGain >= 0 ? "+" : ""}${fmt(monthGain)} este mes
+            </span>
+          )}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button onClick={prevMonth} style={{
+            width: 28, height: 28, borderRadius: 7, border: "1px solid #E2E8F0",
+            background: "#F8FAFC", color: "#475569", fontSize: 13, cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>‹</button>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", minWidth: 130, textAlign: "center" }}>
+            {MONTH_NAMES[viewMonth - 1]} {viewYear}
+          </span>
+          <button onClick={nextMonth} disabled={isNextDisabled} style={{
+            width: 28, height: 28, borderRadius: 7, border: "1px solid #E2E8F0",
+            background: isNextDisabled ? "#F8FAFC" : "#F8FAFC",
+            color: isNextDisabled ? "#CBD5E1" : "#475569",
+            fontSize: 13, cursor: isNextDisabled ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>›</button>
+        </div>
+      </div>
+
+      {/* Day labels */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+        {DAY_LABELS.map(d => (
+          <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700,
+            color: "#94A3B8", padding: "4px 0" }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Calendar cells */}
+      {calLoading ? (
+        <div style={{ textAlign: "center", padding: "24px 0", color: "#94A3B8", fontSize: 13 }}>⏳</div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+          {cells.map((day, i) => {
+            if (!day) return <div key={`e${i}`}/>;
+            const dateStr = `${viewYear}-${String(viewMonth).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+            const snap = snapMap[dateStr];
+            const isToday = dateStr === `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+            const isSel   = selected === dateStr;
+            const hasSnap = Boolean(snap);
+            const pos     = snap ? (snap.gain_vs_prev_day ?? snap.gain) >= 0 : null;
+            return (
+              <div key={dateStr}
+                onClick={() => hasSnap && setSelected(isSel ? null : dateStr)}
+                style={{
+                  position: "relative", textAlign: "center",
+                  padding: "6px 2px 8px",
+                  borderRadius: 8,
+                  background: isSel ? (pos ? "#F0FDF4" : "#FEF2F2") : "transparent",
+                  border: `1px solid ${isSel ? (pos ? "#6EE7B7" : "#FCA5A5") : "transparent"}`,
+                  cursor: hasSnap ? "pointer" : "default",
+                  transition: "background .15s",
+                }}
+                onMouseEnter={e => { if (hasSnap && !isSel) e.currentTarget.style.background = "#F8FAFC"; }}
+                onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = "transparent"; }}
+              >
+                <span style={{
+                  fontSize: 12, fontWeight: isToday ? 700 : 400,
+                  color: isToday ? "#2563EB" : "#334155",
+                  background: isToday ? "#EFF6FF" : "transparent",
+                  borderRadius: "50%", padding: isToday ? "1px 5px" : 0,
+                }}>{day}</span>
+                {hasSnap && (
+                  <div style={{
+                    width: 6, height: 6, borderRadius: "50%",
+                    background: pos ? "#10B981" : "#EF4444",
+                    margin: "3px auto 0",
+                  }}/>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Day detail popup */}
+      {selRow && (
+        <div style={{
+          marginTop: 14, padding: "14px 16px", borderRadius: 10,
+          background: (selRow.gain_vs_prev_day ?? selRow.gain) >= 0 ? "#F0FDF4" : "#FEF2F2",
+          border: `1px solid ${(selRow.gain_vs_prev_day ?? selRow.gain) >= 0 ? "#6EE7B7" : "#FCA5A5"}`,
+          display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
+        }}>
+          <div>
+            <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase",
+              letterSpacing: ".07em", marginBottom: 2 }}>{selected}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#1E293B",
+              fontFamily: "'SF Mono','Fira Code',monospace" }}>
+              ${fmt(selRow.total_value)}
+            </div>
+            <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>
+              Costo base: ${fmt(selRow.total_cost)}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 20 }}>
+            {selRow.gain_vs_prev_day !== null && (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600,
+                  textTransform: "uppercase", marginBottom: 2 }}>vs día anterior</div>
+                <div style={{ fontSize: 15, fontWeight: 700,
+                  color: selRow.gain_vs_prev_day >= 0 ? "#059669" : "#EF4444" }}>
+                  {selRow.gain_vs_prev_day >= 0 ? "+" : ""}${fmt(Math.abs(selRow.gain_vs_prev_day))}
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 600,
+                  color: selRow.gain_vs_prev_day >= 0 ? "#059669" : "#EF4444" }}>
+                  {fmtPct(selRow.gain_vs_prev_day_pct)}
+                </div>
+              </div>
+            )}
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600,
+                textTransform: "uppercase", marginBottom: 2 }}>vs costo base</div>
+              <div style={{ fontSize: 15, fontWeight: 700,
+                color: selRow.gain >= 0 ? "#059669" : "#EF4444" }}>
+                {selRow.gain >= 0 ? "+" : ""}${fmt(Math.abs(selRow.gain))}
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 600,
+                color: selRow.gain >= 0 ? "#059669" : "#EF4444" }}>
+                {fmtPct(selRow.gain_pct)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function timeAgo(ts) {
   const s = Math.floor((Date.now() - ts) / 1000);
   if (s < 60)   return `${s}s`;
@@ -661,6 +862,9 @@ export default function JarvisInversiones() {
             </div>
           );
         })()}
+
+        {/* Performance calendar */}
+        <PerformanceCalendar/>
 
         {/* Header banner */}
         <div style={{
