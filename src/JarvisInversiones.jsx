@@ -289,20 +289,20 @@ function AllocationPanel({ holdings }) {
 const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DAY_LABELS  = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
 
-function PerformanceCalendar() {
+function PerformanceCalendar({ holdings }) {
   const today = new Date();
-  const [viewYear,  setViewYear]  = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth() + 1); // 1-12
-  const [snapMap,   setSnapMap]   = useState({});          // "YYYY-MM-DD" → row
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+  const [viewYear,   setViewYear]   = useState(today.getFullYear());
+  const [viewMonth,  setViewMonth]  = useState(today.getMonth() + 1);
+  const [snapMap,    setSnapMap]    = useState({});
   const [calLoading, setCalLoading] = useState(false);
-  const [selected,  setSelected]  = useState(null);        // "YYYY-MM-DD"
+  const [selected,   setSelected]   = useState(null);
 
   useEffect(() => {
     setCalLoading(true);
     setSelected(null);
     fetch(`${API_BASE}/api/investments/history?year=${viewYear}&month=${viewMonth}`)
-      .then(r => r.ok ? r.json() : [])
-      .catch(() => [])
+      .then(r => r.ok ? r.json() : []).catch(() => [])
       .then(rows => {
         const m = {};
         rows.forEach(r => { m[r.date] = r; });
@@ -322,28 +322,32 @@ function PerformanceCalendar() {
     setViewYear(ny); setViewMonth(nm);
   }
 
-  // Build calendar grid
-  const firstDay = new Date(viewYear, viewMonth - 1, 1).getDay(); // 0=Sun
+  const firstDay    = new Date(viewYear, viewMonth - 1, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
   const cells = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  // Month summary
-  const monthRows = Object.values(snapMap);
-  const monthGain = monthRows.reduce((s, r) => s + (r.gain_vs_prev_day ?? 0), 0);
+  const monthRows     = Object.values(snapMap);
+  const monthGain     = monthRows.reduce((s, r) => s + (r.gain_vs_prev_day ?? 0), 0);
   const isNextDisabled = viewYear > today.getFullYear() ||
     (viewYear === today.getFullYear() && viewMonth >= today.getMonth() + 1);
 
-  const selRow = selected ? snapMap[selected] : null;
+  const selRow  = selected ? snapMap[selected] : null;
+  const hasSnap = (dateStr) => Boolean(snapMap[dateStr]);
+
+  // Sort holdings by gain_pct for top/worst
+  const sorted    = [...(holdings || [])].sort((a, b) => b.gain_pct - a.gain_pct);
+  const top3      = sorted.slice(0, 3);
+  const bottom3   = sorted.slice(-3).reverse();
 
   return (
     <div style={{
       background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: 16,
-      padding: "20px 22px", marginBottom: 20, position: "relative",
+      padding: "20px 22px", marginBottom: 20,
     }}>
-      {/* Calendar header */}
+      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8",
@@ -354,15 +358,13 @@ function PerformanceCalendar() {
               background: monthGain >= 0 ? "#F0FDF4" : "#FEF2F2",
               color: monthGain >= 0 ? "#059669" : "#EF4444",
               border: `1px solid ${monthGain >= 0 ? "#BBF7D0" : "#FECACA"}`,
-            }}>
-              {monthGain >= 0 ? "+" : ""}${fmt(monthGain)} este mes
-            </span>
+            }}>{monthGain >= 0 ? "+" : ""}${fmt(monthGain)} este mes</span>
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <button onClick={prevMonth} style={{
             width: 28, height: 28, borderRadius: 7, border: "1px solid #E2E8F0",
-            background: "#F8FAFC", color: "#475569", fontSize: 13, cursor: "pointer",
+            background: "#F8FAFC", color: "#475569", fontSize: 14, cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>‹</button>
           <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", minWidth: 130, textAlign: "center" }}>
@@ -370,9 +372,8 @@ function PerformanceCalendar() {
           </span>
           <button onClick={nextMonth} disabled={isNextDisabled} style={{
             width: 28, height: 28, borderRadius: 7, border: "1px solid #E2E8F0",
-            background: isNextDisabled ? "#F8FAFC" : "#F8FAFC",
-            color: isNextDisabled ? "#CBD5E1" : "#475569",
-            fontSize: 13, cursor: isNextDisabled ? "not-allowed" : "pointer",
+            background: "#F8FAFC", color: isNextDisabled ? "#CBD5E1" : "#475569",
+            fontSize: 14, cursor: isNextDisabled ? "not-allowed" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>›</button>
         </div>
@@ -386,41 +387,39 @@ function PerformanceCalendar() {
         ))}
       </div>
 
-      {/* Calendar cells */}
+      {/* Grid */}
       {calLoading ? (
         <div style={{ textAlign: "center", padding: "24px 0", color: "#94A3B8", fontSize: 13 }}>⏳</div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
           {cells.map((day, i) => {
             if (!day) return <div key={`e${i}`}/>;
-            const dateStr = `${viewYear}-${String(viewMonth).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-            const snap = snapMap[dateStr];
-            const isToday = dateStr === `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
-            const isSel   = selected === dateStr;
-            const hasSnap = Boolean(snap);
-            const pos     = snap ? (snap.gain_vs_prev_day ?? snap.gain) >= 0 : null;
+            const dateStr  = `${viewYear}-${String(viewMonth).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+            const snap     = snapMap[dateStr];
+            const isToday  = dateStr === todayStr;
+            const isSel    = selected === dateStr;
+            const hasSn    = Boolean(snap);
+            const pos      = snap ? (snap.gain_vs_prev_day ?? snap.gain) >= 0 : null;
+
+            // Number label style
+            const numStyle = isSel
+              ? { background: "#2563EB", color: "#fff", borderRadius: "50%", padding: "1px 5px", fontWeight: 700 }
+              : isToday
+              ? { background: "#EFF6FF", color: "#2563EB", borderRadius: "50%", padding: "1px 5px", fontWeight: 700 }
+              : { color: "#334155" };
+
             return (
               <div key={dateStr}
-                onClick={() => hasSnap && setSelected(isSel ? null : dateStr)}
+                onClick={() => setSelected(isSel ? null : dateStr)}
                 style={{
-                  position: "relative", textAlign: "center",
-                  padding: "6px 2px 8px",
-                  borderRadius: 8,
-                  background: isSel ? (pos ? "#F0FDF4" : "#FEF2F2") : "transparent",
-                  border: `1px solid ${isSel ? (pos ? "#6EE7B7" : "#FCA5A5") : "transparent"}`,
-                  cursor: hasSnap ? "pointer" : "default",
-                  transition: "background .15s",
+                  textAlign: "center", padding: "6px 2px 8px", borderRadius: 8,
+                  cursor: "pointer", transition: "background .15s",
                 }}
-                onMouseEnter={e => { if (hasSnap && !isSel) e.currentTarget.style.background = "#F8FAFC"; }}
+                onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = "#F8FAFC"; }}
                 onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = "transparent"; }}
               >
-                <span style={{
-                  fontSize: 12, fontWeight: isToday ? 700 : 400,
-                  color: isToday ? "#2563EB" : "#334155",
-                  background: isToday ? "#EFF6FF" : "transparent",
-                  borderRadius: "50%", padding: isToday ? "1px 5px" : 0,
-                }}>{day}</span>
-                {hasSnap && (
+                <span style={{ fontSize: 12, ...numStyle }}>{day}</span>
+                {hasSn && (
                   <div style={{
                     width: 6, height: 6, borderRadius: "50%",
                     background: pos ? "#10B981" : "#EF4444",
@@ -433,53 +432,136 @@ function PerformanceCalendar() {
         </div>
       )}
 
-      {/* Day detail popup */}
-      {selRow && (
+      {/* Detail panel — shown when a day is selected */}
+      {selected && (
         <div style={{
-          marginTop: 14, padding: "14px 16px", borderRadius: 10,
-          background: (selRow.gain_vs_prev_day ?? selRow.gain) >= 0 ? "#F0FDF4" : "#FEF2F2",
-          border: `1px solid ${(selRow.gain_vs_prev_day ?? selRow.gain) >= 0 ? "#6EE7B7" : "#FCA5A5"}`,
-          display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
+          marginTop: 16, borderTop: "1px solid #F1F5F9", paddingTop: 16,
         }}>
-          <div>
-            <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase",
-              letterSpacing: ".07em", marginBottom: 2 }}>{selected}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#1E293B",
-              fontFamily: "'SF Mono','Fira Code',monospace" }}>
-              ${fmt(selRow.total_value)}
-            </div>
-            <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>
-              Costo base: ${fmt(selRow.total_cost)}
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 20 }}>
-            {selRow.gain_vs_prev_day !== null && (
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600,
-                  textTransform: "uppercase", marginBottom: 2 }}>vs día anterior</div>
-                <div style={{ fontSize: 15, fontWeight: 700,
-                  color: selRow.gain_vs_prev_day >= 0 ? "#059669" : "#EF4444" }}>
-                  {selRow.gain_vs_prev_day >= 0 ? "+" : ""}${fmt(Math.abs(selRow.gain_vs_prev_day))}
+          {selRow ? (
+            <>
+              {/* Top row: date + value + gains */}
+              <div style={{
+                display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+                flexWrap: "wrap", gap: 16, marginBottom: 16,
+                padding: "14px 16px", borderRadius: 10,
+                background: (selRow.gain_vs_prev_day ?? selRow.gain) >= 0 ? "#F0FDF4" : "#FEF2F2",
+                border: `1px solid ${(selRow.gain_vs_prev_day ?? selRow.gain) >= 0 ? "#6EE7B7" : "#FCA5A5"}`,
+              }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 700,
+                    textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 3 }}>{selected}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#1E293B",
+                    fontFamily: "'SF Mono','Fira Code',monospace" }}>
+                    ${fmt(selRow.total_value)}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>
+                    Costo base: ${fmt(selRow.total_cost)}
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 600,
-                  color: selRow.gain_vs_prev_day >= 0 ? "#059669" : "#EF4444" }}>
-                  {fmtPct(selRow.gain_vs_prev_day_pct)}
+                <div style={{ display: "flex", gap: 24 }}>
+                  {selRow.gain_vs_prev_day !== null && (
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600,
+                        textTransform: "uppercase", marginBottom: 3 }}>vs día anterior</div>
+                      <div style={{ fontSize: 16, fontWeight: 700,
+                        color: selRow.gain_vs_prev_day >= 0 ? "#059669" : "#EF4444" }}>
+                        {selRow.gain_vs_prev_day >= 0 ? "+" : ""}${fmt(Math.abs(selRow.gain_vs_prev_day))}
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 600,
+                        color: selRow.gain_vs_prev_day >= 0 ? "#059669" : "#EF4444" }}>
+                        {fmtPct(selRow.gain_vs_prev_day_pct)}
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600,
+                      textTransform: "uppercase", marginBottom: 3 }}>vs costo base</div>
+                    <div style={{ fontSize: 16, fontWeight: 700,
+                      color: selRow.gain >= 0 ? "#059669" : "#EF4444" }}>
+                      {selRow.gain >= 0 ? "+" : ""}${fmt(Math.abs(selRow.gain))}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600,
+                      color: selRow.gain >= 0 ? "#059669" : "#EF4444" }}>
+                      {fmtPct(selRow.gain_pct)}
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600,
-                textTransform: "uppercase", marginBottom: 2 }}>vs costo base</div>
-              <div style={{ fontSize: 15, fontWeight: 700,
-                color: selRow.gain >= 0 ? "#059669" : "#EF4444" }}>
-                {selRow.gain >= 0 ? "+" : ""}${fmt(Math.abs(selRow.gain))}
-              </div>
-              <div style={{ fontSize: 11, fontWeight: 600,
-                color: selRow.gain >= 0 ? "#059669" : "#EF4444" }}>
-                {fmtPct(selRow.gain_pct)}
-              </div>
+
+              {/* Top 3 / Bottom 3 positions */}
+              {sorted.length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  {/* Top 3 */}
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#059669",
+                      textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>
+                      ▲ Mejores posiciones
+                    </div>
+                    {top3.map(h => (
+                      <div key={h.ticker} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "7px 10px", borderRadius: 8, marginBottom: 4,
+                        background: "#F0FDF4", border: "1px solid #BBF7D0",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 13 }}>{h.icon}</span>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#1E293B" }}>{h.ticker}</div>
+                            <div style={{ fontSize: 10, color: "#94A3B8" }}>{h.nombre}</div>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#059669" }}>
+                            {fmtPct(h.gain_pct)}
+                          </div>
+                          <div style={{ fontSize: 10, color: "#059669" }}>
+                            +${fmt(Math.abs(h.gain))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Bottom 3 */}
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#EF4444",
+                      textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>
+                      ▼ Peores posiciones
+                    </div>
+                    {bottom3.map(h => (
+                      <div key={h.ticker} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "7px 10px", borderRadius: 8, marginBottom: 4,
+                        background: "#FEF2F2", border: "1px solid #FECACA",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 13 }}>{h.icon}</span>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#1E293B" }}>{h.ticker}</div>
+                            <div style={{ fontSize: 10, color: "#94A3B8" }}>{h.nombre}</div>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#EF4444" }}>
+                            {fmtPct(h.gain_pct)}
+                          </div>
+                          <div style={{ fontSize: 10, color: "#EF4444" }}>
+                            {h.gain >= 0 ? "+" : ""}${fmt(h.gain)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{
+              textAlign: "center", padding: "20px 0", color: "#94A3B8", fontSize: 13,
+            }}>
+              <div style={{ fontSize: 24, marginBottom: 6 }}>📭</div>
+              Sin datos para este día
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -864,7 +946,7 @@ export default function JarvisInversiones() {
         })()}
 
         {/* Performance calendar */}
-        <PerformanceCalendar/>
+        <PerformanceCalendar holdings={holdings}/>
 
         {/* Header banner */}
         <div style={{
