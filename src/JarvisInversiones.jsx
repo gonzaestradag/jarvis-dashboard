@@ -173,7 +173,7 @@ function HoldingsTable({ holdings, onDelete }) {
       {/* Header */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 32px",
         gap: 8, padding: "6px 10px", marginBottom: 4 }}>
-        {["Activo", "Tipo", "Invertido", "Valor actual", "P&L", ""].map(h => (
+        {["Activo", "Precio acción", "Invertido", "Valor actual", "P&L", ""].map(h => (
           <span key={h} style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8",
             textTransform: "uppercase", letterSpacing: ".07em" }}>{h}</span>
         ))}
@@ -207,10 +207,12 @@ function HoldingsTable({ holdings, onDelete }) {
                   maxWidth: 120 }}>{h.nombre}</div>
               </div>
             </div>
-            {/* Tipo */}
+            {/* Precio acción */}
             <div style={{ display: "flex", alignItems: "center" }}>
-              <span style={{ fontSize: 11, fontWeight: 500, color: h.color,
-                background: `${h.color}14`, padding: "2px 8px", borderRadius: 6 }}>{h.tipo}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#1E293B",
+                fontFamily: "'SF Mono','Fira Code',monospace" }}>
+                {h.current_price != null ? `$${fmt(h.current_price)}` : "—"}
+              </span>
             </div>
             {/* Invertido */}
             <div style={{ display: "flex", alignItems: "center" }}>
