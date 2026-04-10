@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { label: "Salud",      to: "/salud" },
   { label: "Agentes IA", to: "/agentes" },
   { label: "Chat",       to: "/chat" },
+  { label: "Mail",       to: "/mail" },
   { label: "Inversiones",to: "/inversiones" },
 ];
 

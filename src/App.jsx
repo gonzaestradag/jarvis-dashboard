@@ -3,6 +3,7 @@ import JarvisDashboard from "./JarvisDashboard.jsx";
 import JarvisSalud from "./JarvisSalud.jsx";
 import JarvisAgentes from "./JarvisAgentes.jsx";
 import JarvisChat from "./JarvisChat.jsx";
+import JarvisMail from "./JarvisMail.jsx";
 import JarvisInversiones from "./JarvisInversiones.jsx";
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="/salud"       element={<JarvisSalud />} />
         <Route path="/agentes"     element={<JarvisAgentes />} />
         <Route path="/chat"        element={<JarvisChat />} />
+        <Route path="/mail"        element={<JarvisMail />} />
         <Route path="/inversiones" element={<JarvisInversiones />} />
         <Route path="*"            element={<Navigate to="/" replace />} />
       </Routes>
