@@ -98,21 +98,21 @@ export default function JarvisMail() {
           {contacts.map(contact => (
             <div key={contact.id} style={{
               padding: "10px", background: "#F8FAFC", borderRadius: "8px",
-              display: "flex", justifyContent: "space-between", alignItems: "center"
+              display: "flex", flexDirection: "column", gap: 8
             }}>
               {editingId === contact.id ? (
-                <div style={{ display: "flex", gap: 6, flex: 1 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <input
                     type="text"
                     value={editForm.name}
                     onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                    style={{ flex: 1, padding: "4px 6px", fontSize: "11px", border: "1px solid #E2E8F0", borderRadius: "4px" }}
+                    style={{ padding: "4px 6px", fontSize: "11px", border: "1px solid #E2E8F0", borderRadius: "4px" }}
                   />
                   <input
                     type="email"
                     value={editForm.email}
                     onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                    style={{ flex: 1, padding: "4px 6px", fontSize: "11px", border: "1px solid #E2E8F0", borderRadius: "4px" }}
+                    style={{ padding: "4px 6px", fontSize: "11px", border: "1px solid #E2E8F0", borderRadius: "4px" }}
                   />
                   <button onClick={() => handleEdit(contact.id, editForm.name, editForm.email)} style={{
                     padding: "4px 8px", background: "#10B981", color: "#fff",
@@ -123,19 +123,19 @@ export default function JarvisMail() {
                 </div>
               ) : (
                 <>
-                  <div>
-                    <div style={{ fontSize: "12px", fontWeight: 500, color: "#1E293B" }}>{contact.name}</div>
-                    <div style={{ fontSize: "11px", color: "#94A3B8" }}>{contact.email}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: "12px", fontWeight: 500, color: "#1E293B", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{contact.name}</div>
+                    <div style={{ fontSize: "11px", color: "#94A3B8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{contact.email}</div>
                   </div>
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 6, width: "100%" }}>
                     <button onClick={() => { setEditingId(contact.id); setEditForm({ name: contact.name, email: contact.email }); }} style={{
-                      padding: "4px 8px", background: "#2563EB", color: "#fff",
+                      flex: 1, padding: "4px 8px", background: "#2563EB", color: "#fff",
                       border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "11px"
                     }}>
                       Editar
                     </button>
                     <button onClick={() => deleteContact(contact.id)} style={{
-                      padding: "4px 8px", background: "#EF4444", color: "#fff",
+                      flex: 1, padding: "4px 8px", background: "#EF4444", color: "#fff",
                       border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "11px"
                     }}>
                       Eliminar
