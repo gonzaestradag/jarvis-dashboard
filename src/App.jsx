@@ -29,31 +29,32 @@ function Navbar() {
   const now = useTime();
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, padding: "24px 24px 0 24px", maxWidth: 1400, margin: "0 auto 20px auto", width: "100%" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, padding: "20px 16px 0 16px", maxWidth: 1400, margin: "0 auto 20px auto", width: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         <div style={{
-          width: 38, height: 38, borderRadius: 10,
+          width: 36, height: 36, borderRadius: 8,
           background: "linear-gradient(135deg, #1E3A5F, #2563EB)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 16, fontWeight: 800, color: "#fff",
+          fontSize: 14, fontWeight: 800, color: "#fff",
         }}>J</div>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#0F172A", lineHeight: 1 }}>Jarvis</div>
-          <div style={{ fontSize: 12, color: "#94A3B8" }}>Personal AI · Monterrey, MX</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A", lineHeight: 1 }}>Jarvis</div>
+          <div style={{ fontSize: 11, color: "#94A3B8" }}>Personal AI · Monterrey, MX</div>
         </div>
       </div>
-      <nav style={{ display: "flex", gap: 6 }}>
+      <nav style={{ display: "flex", gap: 4 }}>
         {NAV_ITEMS.map(({ label, to }) => {
           const active = location.pathname === to;
           return (
             <Link key={label} to={to} style={{
-              padding: "6px 14px", borderRadius: 8, border: "1px solid",
+              padding: "5px 11px", borderRadius: 6, border: "1px solid",
               borderColor: active ? "#2563EB" : "#E2E8F0",
               background: active ? "#2563EB" : "#fff",
               color: active ? "#fff" : "#64748B",
-              fontSize: 13, fontWeight: 500, cursor: "pointer",
+              fontSize: 12, fontWeight: 500, cursor: "pointer",
               transition: "all .15s",
               textDecoration: "none",
+              whiteSpace: "nowrap",
             }}>{label}</Link>
           );
         })}
