@@ -1,15 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { useContacts } from "./hooks/useContacts";
 
-const NAV_ITEMS = [
-  { label: "Dashboard",  to: "/" },
-  { label: "Salud",      to: "/salud" },
-  { label: "Agentes IA", to: "/agentes" },
-  { label: "Chat",       to: "/chat" },
-  { label: "Mail",       to: "/mail" },
-  { label: "Inversiones",to: "/inversiones" },
-];
+import { useContacts } from "./hooks/useContacts";
 
 const API_BASE = "https://leo-my-ai-assistant.onrender.com";
 
@@ -22,7 +13,6 @@ function useTime() {
 }
 
 function Nav() {
-  const location = useLocation();
   return (
     <nav style={{ display: "flex", gap: 6 }}>
       {NAV_ITEMS.map(({ label, to }) => {
