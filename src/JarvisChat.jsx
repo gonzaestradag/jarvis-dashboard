@@ -1,14 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
-
-const NAV_ITEMS = [
-  { label: "Dashboard",  to: "/" },
-  { label: "Salud",      to: "/salud" },
-  { label: "Agentes IA", to: "/agentes" },
-  { label: "Chat",       to: "/chat" },
-  { label: "Mail",       to: "/mail" },
-  { label: "Inversiones",to: "/inversiones" },
-];
 
 const API_BASE = "https://leo-my-ai-assistant.onrender.com";
 const SESSION_ID = "web_dashboard";
@@ -91,7 +81,7 @@ function Message({ msg }) {
 
 export default function JarvisChat() {
   const now = useTime();
-  const location = useLocation();
+
   const [messages, setMessages] = useState([
     {
       id: 0,
@@ -188,38 +178,6 @@ export default function JarvisChat() {
       `}</style>
 
       <div style={{ maxWidth: 860, margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", flex: 1 }}>
-
-        {/* Top bar */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 10,
-              background: "linear-gradient(135deg, #1E3A5F, #2563EB)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 16, fontWeight: 800, color: "#fff",
-            }}>J</div>
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#0F172A", lineHeight: 1 }}>Jarvis</div>
-              <div style={{ fontSize: 12, color: "#94A3B8" }}>Personal AI · Monterrey, MX</div>
-            </div>
-          </div>
-          <nav style={{ display: "flex", gap: 6 }}>
-            {NAV_ITEMS.map(({ label, to }) => {
-              const active = location.pathname === to;
-              return (
-                <Link key={label} to={to} style={{
-                  padding: "6px 14px", borderRadius: 8, border: "1px solid",
-                  borderColor: active ? "#2563EB" : "#E2E8F0",
-                  background: active ? "#2563EB" : "#fff",
-                  color: active ? "#fff" : "#64748B",
-                  fontSize: 13, fontWeight: 500, cursor: "pointer",
-                  transition: "all .15s",
-                  textDecoration: "none",
-                }}>{label}</Link>
-              );
-            })}
-          </nav>
-        </div>
 
         {/* Chat container */}
         <div style={{
