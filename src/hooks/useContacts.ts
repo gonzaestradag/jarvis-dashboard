@@ -1,12 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+const INITIAL_CONTACTS = [
+  { id: 1, name: 'Papá', email: 'papa@example.com', group: 'FAMILIA' },
+  { id: 2, name: 'Mamá', email: 'mama@example.com', group: 'FAMILIA' },
+  { id: 3, name: 'Hermano', email: 'hermano@example.com', group: 'FAMILIA' },
+  { id: 4, name: 'Profesores', email: 'profesor@udem.edu.mx', group: 'UDEM/ESCUELA' },
+];
+
+const STORAGE_KEY = 'jarvis_contacts';
 
 export function useContacts() {
-  const [contacts, setContacts] = useState([
-    { id: 1, name: 'Papá', email: 'papa@example.com', group: 'FAMILIA' },
-    { id: 2, name: 'Mamá', email: 'mama@example.com', group: 'FAMILIA' },
-    { id: 3, name: 'Hermano', email: 'hermano@example.com', group: 'FAMILIA' },
-    { id: 4, name: 'Profesores', email: 'profesor@udem.edu.mx', group: 'UDEM/ESCUELA' },
-  ]);
+  const [contacts, setContacts] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : INITIAL_CONTACTS;
+    } catch (error) {
+      console.error('Error loading contacts from localStorage:', error);
+      return INITIAL_CONTACTS;
+    }
+  });
+
+  // Guardar en localStorage cada vez que cambien los contactos
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(contacts));
+  }, [contacts]);
 
   const addContact = (name: string, email: string, group: string) => {
     const newContact = {
