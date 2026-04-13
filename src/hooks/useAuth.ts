@@ -68,7 +68,6 @@ export function useAuth(): UseAuthReturn {
   // Login function
   const login = useCallback(async (email: string, password: string) => {
     try {
-      setLoading(true);
       const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: {
@@ -86,12 +85,12 @@ export function useAuth(): UseAuthReturn {
       localStorage.setItem(TOKEN_KEY, data.token);
       setUser(data.user);
       setIsAuthenticated(true);
+      setLoading(false);
     } catch (error) {
       setIsAuthenticated(false);
       setUser(null);
-      throw error;
-    } finally {
       setLoading(false);
+      throw error;
     }
   }, []);
 
