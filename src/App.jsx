@@ -6,6 +6,7 @@ import JarvisAgentes from "./JarvisAgentes.jsx";
 import JarvisChat from "./JarvisChat.jsx";
 import JarvisMail from "./JarvisMail.jsx";
 import JarvisInversiones from "./JarvisInversiones.jsx";
+import JarvisTrading from "./JarvisTrading.jsx";
 
 const NAV_ITEMS = [
   { label: "Dashboard",  to: "/" },
@@ -14,6 +15,7 @@ const NAV_ITEMS = [
   { label: "Chat",       to: "/chat" },
   { label: "Mail",       to: "/mail" },
   { label: "Inversiones",to: "/inversiones" },
+  { label: "Trading",    to: "/trading" },
 ];
 
 function pad(n) { return String(n).padStart(2, "0"); }
@@ -75,6 +77,7 @@ export default function App() {
           <Route path="/chat"        element={<JarvisChat />} />
           <Route path="/mail"        element={<JarvisMail />} />
           <Route path="/inversiones" element={<JarvisInversiones />} />
+          <Route path="/trading"     element={<JarvisTrading />} />
           <Route path="*"            element={<Navigate to="/" replace />} />
         </Routes>
       </div>
