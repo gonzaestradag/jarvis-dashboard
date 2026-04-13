@@ -10,6 +10,9 @@ import JarvisTrading from "./JarvisTrading.jsx";
 import LoginPage from "./LoginPage.jsx";
 import { useAuth } from "./hooks/useAuth";
 
+// Force auth check on load
+const AUTH_ENABLED = true;
+
 const NAV_ITEMS = [
   { label: "Dashboard",  to: "/" },
   { label: "Salud",      to: "/salud" },
