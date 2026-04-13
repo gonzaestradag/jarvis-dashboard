@@ -110,19 +110,28 @@ function PrivateRoute({ children, isAuthenticated, loading }) {
 function AppContent() {
   const { isAuthenticated, loading, logout } = useAuth();
 
+  // Always redirect to login if not authenticated
+  if (loading) {
+    return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontSize: 16, color: "#64748B" }}>Cargando autenticación...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#F0F4F8", fontFamily: "'Inter', 'SF Pro Display', -apple-system, sans-serif" }}>
       <Navbar isAuthenticated={isAuthenticated} onLogout={logout} />
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<PrivateRoute isAuthenticated={isAuthenticated} loading={loading}><JarvisDashboard /></PrivateRoute>} />
-        <Route path="/salud" element={<PrivateRoute isAuthenticated={isAuthenticated} loading={loading}><JarvisSalud /></PrivateRoute>} />
-        <Route path="/agentes" element={<PrivateRoute isAuthenticated={isAuthenticated} loading={loading}><JarvisAgentes /></PrivateRoute>} />
-        <Route path="/chat" element={<PrivateRoute isAuthenticated={isAuthenticated} loading={loading}><JarvisChat /></PrivateRoute>} />
-        <Route path="/mail" element={<PrivateRoute isAuthenticated={isAuthenticated} loading={loading}><JarvisMail /></PrivateRoute>} />
-        <Route path="/inversiones" element={<PrivateRoute isAuthenticated={isAuthenticated} loading={loading}><JarvisInversiones /></PrivateRoute>} />
-        <Route path="/trading" element={<PrivateRoute isAuthenticated={isAuthenticated} loading={loading}><JarvisTrading /></PrivateRoute>} />
-        <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />} />
+        <Route path="/" element={<JarvisDashboard />} />
+        <Route path="/salud" element={<JarvisSalud />} />
+        <Route path="/agentes" element={<JarvisAgentes />} />
+        <Route path="/chat" element={<JarvisChat />} />
+        <Route path="/mail" element={<JarvisMail />} />
+        <Route path="/inversiones" element={<JarvisInversiones />} />
+        <Route path="/trading" element={<JarvisTrading />} />
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   );
