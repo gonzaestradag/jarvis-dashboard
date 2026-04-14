@@ -17,10 +17,12 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      navigate("/", { replace: true });
+      // Pequeño delay para asegurar que el estado se actualiza
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 100);
     } catch (err) {
       setError(err.message || "Login failed. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
